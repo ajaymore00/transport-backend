@@ -3,6 +3,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import vehicleRoutes from "./routes/vehicle.routes.js"; // ✅ Import your route
+import driverRoutes from "./routes/driver.routes.js";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.get("/", (req, res) => {
 
 // ✅ Use vehicle routes
 app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/drivers", driverRoutes);
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
