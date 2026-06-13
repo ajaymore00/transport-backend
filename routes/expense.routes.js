@@ -1,12 +1,13 @@
 import express from "express";
 import Expense from "../models/expense.model.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// GET all expenses
-router.get("/", async (req, res) => {
+// GET all expenses for authenticated user
+router.get("/", authMiddleware, async (req, res) => {
   try {
-    const expenses = await Expense.find();
+    const expenses = await Expense.find({ userId: req.user.userId });
     res.status(200).json(expenses);
   } catch (error) {
     console.error("Error fetching expenses:", error);
@@ -14,10 +15,10 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET expense by ID
-router.get("/:id", async (req, res) => {
+// GET expense by ID for authenticated user
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
+    const expense = await Expense.findOne({ _id: req.params.id, userId: req.user.userId });
     if (!expense) return res.status(404).json({ message: "Expense not found" });
     res.status(200).json(expense);
   } catch (error) {
@@ -27,7 +28,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // CREATE a new expense
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const {
       type,
@@ -36,6 +37,8 @@ router.post("/", async (req, res) => {
       description,
       createdDate,
       updatedDate,
+      createdOn,
+      updatedOn,
       createdBy,
       updatedBy,
     } = req.body;
@@ -45,14 +48,17 @@ router.post("/", async (req, res) => {
     }
 
     const expense = new Expense({
+      userId: req.user.userId,
       type,
       amount,
       date,
       description,
       createdDate,
       updatedDate,
-      createdBy,
-      updatedBy,
+      createdOn: createdOn || new Date(),
+      updatedOn: updatedOn || new Date(),
+      createdBy: req.user.userId,
+      updatedBy: req.user.userId,
     });
 
     const savedExpense = await expense.save();
@@ -64,14 +70,16 @@ router.post("/", async (req, res) => {
 });
 
 // UPDATE an expense by ID
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const updateData = {
       ...req.body,
       updatedDate: req.body.updatedDate || new Date(),
+      updatedOn: req.body.updatedOn || new Date(),
+      updatedBy: req.user.userId,
     };
 
-    const updatedExpense = await Expense.findByIdAndUpdate(req.params.id, updateData, {
+    const updatedExpense = await Expense.findOneAndUpdate({ _id: req.params.id, userId: req.user.userId }, updateData, {
       new: true,
       runValidators: true,
     });
@@ -85,9 +93,9 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE an expense by ID
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
-    const deletedExpense = await Expense.findByIdAndDelete(req.params.id);
+    const deletedExpense = await Expense.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
     if (!deletedExpense) return res.status(404).json({ message: "Expense not found" });
     res.status(200).json({ message: "Expense deleted successfully" });
   } catch (error) {

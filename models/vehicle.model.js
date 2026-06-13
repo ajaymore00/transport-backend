@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const vehicleSchema = new mongoose.Schema({
+  userId: { type: String, required: true, trim: true },
   name: { type: String, required: true, trim: true },
   model: { type: String, required: true, trim: true },
   type: { type: String, required: true, trim: true },
@@ -17,6 +18,8 @@ const vehicleSchema = new mongoose.Schema({
   manufacturer: { type: String, trim: true },
   createdDate: { type: Date, default: Date.now },
   updatedDate: { type: Date, default: Date.now },
+  createdOn: { type: Date, default: Date.now },
+  updatedOn: { type: Date, default: Date.now },
   createdBy: { type: String, trim: true },
   updatedBy: { type: String, trim: true },
 }, { timestamps: true });

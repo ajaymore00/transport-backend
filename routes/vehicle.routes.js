@@ -1,12 +1,13 @@
 import express from "express";
 import Vehicle from "../models/vehicle.model.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// GET all vehicles
-router.get("/", async (req, res) => {
+// GET all vehicles for authenticated user
+router.get("/", authMiddleware, async (req, res) => {
   try {
-    const vehicles = await Vehicle.find();
+    const vehicles = await Vehicle.find({ userId: req.user.userId });
     res.status(200).json(vehicles);
   } catch (error) {
     console.error("Error fetching vehicles:", error);
@@ -14,10 +15,10 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET vehicle by ID
-router.get("/:id", async (req, res) => {
+// GET vehicle by ID for authenticated user
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const vehicle = await Vehicle.findById(req.params.id);
+    const vehicle = await Vehicle.findOne({ _id: req.params.id, userId: req.user.userId });
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
     res.status(200).json(vehicle);
   } catch (error) {
@@ -27,7 +28,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // CREATE a new vehicle
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
     const {
       name,
@@ -44,8 +45,10 @@ router.post("/", async (req, res) => {
       color,
       year,
       manufacturer,
-       createdDate,
+      createdDate,
       updatedDate,
+      createdOn,
+      updatedOn,
       createdBy,
       updatedBy,
     } = req.body;
@@ -60,6 +63,7 @@ router.post("/", async (req, res) => {
     }
 
     const vehicle = new Vehicle({
+      userId: req.user.userId,
       name,
       model,
       type,
@@ -74,10 +78,12 @@ router.post("/", async (req, res) => {
       color,
       year,
       manufacturer,
-       createdDate,
+      createdDate,
       updatedDate,
-      createdBy,
-      updatedBy,
+      createdOn: createdOn || new Date(),
+      updatedOn: updatedOn || new Date(),
+      createdBy: req.user.userId,
+      updatedBy: req.user.userId,
     });
 
     const savedVehicle = await vehicle.save();
@@ -89,9 +95,14 @@ router.post("/", async (req, res) => {
 });
 
 // UPDATE a vehicle by ID
-router.put("/:id", async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const updatedVehicle = await Vehicle.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = {
+      ...req.body,
+      updatedOn: req.body.updatedOn || new Date(),
+      updatedBy: req.user.userId,
+    };
+    const updatedVehicle = await Vehicle.findOneAndUpdate({ _id: req.params.id, userId: req.user.userId }, updateData, {
       new: true,
       runValidators: true,
     });
@@ -105,9 +116,9 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE a vehicle by ID
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, async (req, res) => {
   try {
-    const deletedVehicle = await Vehicle.findByIdAndDelete(req.params.id);
+    const deletedVehicle = await Vehicle.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
     if (!deletedVehicle) return res.status(404).json({ message: "Vehicle not found" });
     res.status(200).json({ message: "Vehicle deleted successfully" });
   } catch (error) {

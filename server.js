@@ -4,6 +4,9 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import vehicleRoutes from "./routes/vehicle.routes.js"; // ✅ Import your route
 import driverRoutes from "./routes/driver.routes.js";
+import expenseRoutes from "./routes/expense.routes.js";
+import routeRoutes from "./routes/route.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
 dotenv.config();
 
@@ -28,9 +31,12 @@ app.get("/", (req, res) => {
   res.send("Server is running ✅");
 });
 
-// ✅ Use vehicle routes
+// ✅ Use auth and API routes
+app.use("/api/auth", authRoutes);
+app.use("/api/routes", routeRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/drivers", driverRoutes);
+app.use("/api/expenses", expenseRoutes);
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
