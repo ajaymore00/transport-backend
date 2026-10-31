@@ -7,6 +7,7 @@ import driverRoutes from "./routes/driver.routes.js";
 import expenseRoutes from "./routes/expense.routes.js";
 import routeRoutes from "./routes/route.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use("/api/routes", routeRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/drivers", driverRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
