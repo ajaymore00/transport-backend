@@ -186,6 +186,61 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// Update the authenticated user's profile
+router.patch("/me", authMiddleware, async (req, res) => {
+  const profileFields = [
+    "transporterName",
+    "ownerName",
+    "whatsappNumber",
+    "email",
+    "userName",
+    "gstNo",
+    "mobileNumber",
+  ];
+  const requiredFields = ["transporterName", "ownerName", "whatsappNumber", "email", "mobileNumber"];
+
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ message: "Profile fields must be provided as a JSON object" });
+  }
+
+  const fieldsToUpdate = profileFields.filter((field) => Object.hasOwn(req.body, field));
+  if (fieldsToUpdate.length === 0) {
+    return res.status(400).json({ message: "No editable profile fields provided" });
+  }
+
+  for (const field of fieldsToUpdate) {
+    if (typeof req.body[field] !== "string") {
+      return res.status(400).json({ message: `${field} must be a string` });
+    }
+
+    if (requiredFields.includes(field) && !req.body[field].trim()) {
+      return res.status(400).json({ message: `${field} cannot be empty` });
+    }
+  }
+
+  if (Object.hasOwn(req.body, "email") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email.trim())) {
+    return res.status(400).json({ message: "A valid email address is required" });
+  }
+
+  try {
+    for (const field of fieldsToUpdate) {
+      req.user[field] = req.body[field].trim();
+    }
+    req.user.updatedBy = req.user.userId;
+    await req.user.save();
+    return res.status(200).json({ message: "Profile updated successfully", user: sanitizeUser(req.user) });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Email or mobile number is already in use" });
+    }
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: "Invalid profile data" });
+    }
+    console.error("Update profile error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // Change password
 router.post("/change-password", authMiddleware, async (req, res) => {
   try {
