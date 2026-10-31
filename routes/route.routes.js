@@ -3,6 +3,50 @@ import Route from "../models/route.model.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+const editableRouteFields = [
+  "routeName",
+  "startLocation",
+  "endLocation",
+  "date",
+  "startTime",
+  "endTime",
+  "driverName",
+  "vehicleNumber",
+  "status",
+  "progress",
+  "vendor",
+  "cargoType",
+  "loadWeight",
+  "distanceKm",
+  "amount",
+  "fuelCost",
+  "tollCost",
+  "driverCost",
+  "otherCost",
+  "shipmentReference",
+  "notes",
+  "checkpoints",
+];
+const costFields = ["fuelCost", "tollCost", "driverCost", "otherCost"];
+
+const getEditableRouteData = (body) => {
+  const source = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  return Object.fromEntries(editableRouteFields
+    .filter((field) => Object.hasOwn(source, field))
+    .map((field) => [field, source[field]]));
+};
+
+const validateCosts = (data) => {
+  for (const field of costFields) {
+    if (data[field] === undefined) continue;
+    const value = Number(data[field]);
+    if (!Number.isFinite(value) || value < 0) {
+      return `${field} must be a non-negative number`;
+    }
+    data[field] = value;
+  }
+  return null;
+};
 
 // GET all routes for authenticated user
 router.get("/", authMiddleware, async (req, res) => {
@@ -51,6 +95,14 @@ const generateNextRouteSequence = async () => {
 // CREATE a new route
 router.post("/", authMiddleware, async (req, res) => {
   try {
+    const routeData = getEditableRouteData(req.body);
+    if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+      return res.status(400).json({ message: "Invalid route data" });
+    }
+
+    const costError = validateCosts(routeData);
+    if (costError) return res.status(400).json({ message: costError });
+
     const {
       routeName,
       startLocation,
@@ -68,13 +120,13 @@ router.post("/", authMiddleware, async (req, res) => {
       loadWeight,
       distanceKm,
       amount,
+      fuelCost,
+      tollCost,
+      driverCost,
+      otherCost,
       shipmentReference,
       notes,
-      createdDate,
-      updatedDate,
-      createdOn,
-      updatedOn,
-    } = req.body;
+    } = routeData;
 
     if (!routeName || !startLocation || !endLocation || !date || !startTime || !endTime) {
       return res.status(400).json({ message: "Missing required route fields" });
@@ -102,12 +154,12 @@ router.post("/", authMiddleware, async (req, res) => {
       loadWeight,
       distanceKm,
       amount,
+      fuelCost,
+      tollCost,
+      driverCost,
+      otherCost,
       shipmentReference,
       notes,
-      createdDate,
-      updatedDate,
-      createdOn: createdOn || new Date(),
-      updatedOn: updatedOn || new Date(),
       createdBy: req.user.userId,
       updatedBy: req.user.userId,
     });
@@ -116,6 +168,9 @@ router.post("/", authMiddleware, async (req, res) => {
     res.status(201).json(savedRoute);
   } catch (error) {
     console.error("Error creating route:", error);
+    if (error.name === "ValidationError" || error.name === "CastError") {
+      return res.status(400).json({ message: "Invalid route data", errors: error.errors });
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
@@ -123,12 +178,19 @@ router.post("/", authMiddleware, async (req, res) => {
 // UPDATE a route by ID
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const updateData = {
-      ...req.body,
-      updatedDate: req.body.updatedDate || new Date(),
-      updatedOn: req.body.updatedOn || new Date(),
+    const updateData = getEditableRouteData(req.body);
+    const costError = validateCosts(updateData);
+    if (costError) return res.status(400).json({ message: costError });
+
+    if (!Object.keys(updateData).length) {
+      return res.status(400).json({ message: "No editable route fields provided" });
+    }
+
+    Object.assign(updateData, {
+      updatedDate: new Date(),
+      updatedOn: new Date(),
       updatedBy: req.user.userId,
-    };
+    });
 
     const updatedRoute = await Route.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.userId },
@@ -143,6 +205,9 @@ router.put("/:id", authMiddleware, async (req, res) => {
     res.status(200).json(updatedRoute);
   } catch (error) {
     console.error("Error updating route:", error);
+    if (error.name === "ValidationError" || error.name === "CastError") {
+      return res.status(400).json({ message: "Invalid route data", errors: error.errors });
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
